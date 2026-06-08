@@ -1,0 +1,446 @@
+{
+  "info": {
+    "_postman_id": "daminiplus-student-app-5987",
+    "name": "DAMINI+ Student App APIs - Local 5987",
+    "description": "Only student app APIs for DAMINI+ local backend. Base URL: http://localhost:5987/api/v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5987/api/v1" },
+    { "key": "studentEmail", "value": "student@test.com" },
+    { "key": "studentName", "value": "Test Student" },
+    { "key": "studentOtp", "value": "" },
+    { "key": "studentToken", "value": "" },
+    { "key": "languageId", "value": "" },
+    { "key": "boardId", "value": "" },
+    { "key": "classId", "value": "" },
+    { "key": "subjectId", "value": "" },
+    { "key": "topicId", "value": "" },
+    { "key": "questionId", "value": "" },
+    { "key": "subscriptionId", "value": "" },
+    { "key": "paymentId", "value": "postman_test_payment" },
+    { "key": "submissionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 Auth",
+      "item": [
+        {
+          "name": "Send Student OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && json.data && json.data.devOtp) {",
+                  "  pm.collectionVariables.set('studentOtp', json.data.devOtp);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"name\": \"{{studentName}}\"\n}"
+            },
+            "url": "{{baseUrl}}/app/auth/send-otp"
+          }
+        },
+        {
+          "name": "Verify Student OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && json.data) {",
+                  "  if (json.data.token) pm.collectionVariables.set('studentToken', json.data.token);",
+                  "  if (json.data.user && json.data.user.languageId) pm.collectionVariables.set('languageId', json.data.user.languageId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"otp\": \"{{studentOtp}}\",\n  \"name\": \"{{studentName}}\"\n}"
+            },
+            "url": "{{baseUrl}}/app/auth/verify-otp"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Profile And Selection",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/me"
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{studentName}}\",\n  \"languageId\": \"{{languageId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/app/me"
+          }
+        },
+        {
+          "name": "Get Languages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && Array.isArray(json.data) && json.data[0]?._id) {",
+                  "  pm.collectionVariables.set('languageId', json.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/languages"
+          }
+        },
+        {
+          "name": "Get Boards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && Array.isArray(json.data) && json.data[0]?._id) {",
+                  "  pm.collectionVariables.set('boardId', json.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/boards"
+          }
+        },
+        {
+          "name": "Get Classes With Plans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && Array.isArray(json.data) && json.data[0]?._id) {",
+                  "  pm.collectionVariables.set('classId', json.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/classes?boardId={{boardId}}&availablePlans=true"
+          }
+        },
+        {
+          "name": "Select Board And Class",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"boardId\": \"{{boardId}}\",\n  \"classId\": \"{{classId}}\",\n  \"languageId\": \"{{languageId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/app/select-board-class"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Subscription",
+      "item": [
+        {
+          "name": "Get Subscription Plans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && Array.isArray(json.data) && json.data[0]?._id) {",
+                  "  pm.collectionVariables.set('subscriptionId', json.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/subscriptions?boardId={{boardId}}&classId={{classId}}"
+          }
+        },
+        {
+          "name": "Purchase Subscription",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"paymentId\": \"{{paymentId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/app/purchases"
+          }
+        },
+        {
+          "name": "Get My Purchases",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/purchases"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Learning Content",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/dashboard"
+          }
+        },
+        {
+          "name": "Get Subjects",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && Array.isArray(json.data) && json.data[0]?._id) {",
+                  "  pm.collectionVariables.set('subjectId', json.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/subjects?languageId={{languageId}}"
+          }
+        },
+        {
+          "name": "Get Chapters",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/chapters?subjectId={{subjectId}}&languageId={{languageId}}"
+          }
+        },
+        {
+          "name": "Get Subject Topics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && Array.isArray(json.data) && json.data[0]?._id) {",
+                  "  pm.collectionVariables.set('topicId', json.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/subjects/{{subjectId}}/topics?languageId={{languageId}}"
+          }
+        },
+        {
+          "name": "Get Topic Detail",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/topics/{{topicId}}"
+          }
+        },
+        {
+          "name": "Get Questions In Sequence",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const questions = json.data && (json.data.questions || json.data);",
+                  "if (json.status && Array.isArray(questions) && questions[0]?._id) {",
+                  "  pm.collectionVariables.set('questionId', questions[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/questions?subjectId={{subjectId}}&topicId={{topicId}}&languageId={{languageId}}&page=1&limit=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Answer Submission",
+      "item": [
+        {
+          "name": "Submit Answer Image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.status && json.data && json.data._id) {",
+                  "  pm.collectionVariables.set('submissionId', json.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/app/questions/{{questionId}}/submit"
+          }
+        },
+        {
+          "name": "Get Submission History",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/submissions"
+          }
+        },
+        {
+          "name": "Get Submission History By Topic",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/submissions?subjectId={{subjectId}}&topicId={{topicId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Progress Results Resume",
+      "item": [
+        {
+          "name": "Get Progress",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/progress"
+          }
+        },
+        {
+          "name": "Get Results",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/results"
+          }
+        },
+        {
+          "name": "Get Resume Learning",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/app/resume"
+          }
+        },
+        {
+          "name": "Update Resume Learning",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": \"{{subjectId}}\",\n  \"topicId\": \"{{topicId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/app/resume"
+          }
+        }
+      ]
+    }
+  ]
+}

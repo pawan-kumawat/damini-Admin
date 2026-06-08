@@ -1,0 +1,101 @@
+const Topic = require('../models/Topic');
+const Question = require('../models/Question');
+const Chapter = require('../models/Chapter');
+const TopicTranslation = require('../models/TopicTranslation');
+const QuestionTranslation = require('../models/QuestionTranslation');
+const { success, error } = require('../utils/response');
+const {
+  getBoardLanguages,
+  getContentLanguages,
+  replaceTranslations,
+  resolveLanguageId,
+  validateTranslations,
+  withLocalizedFields,
+} = require('../utils/translations');
+
+async function localizeTopics(topics, req) {
+  const requestedLanguageId = await resolveLanguageId(req);
+  const chapterIds = [...new Set(topics.map(t => t.chapterId?._id || t.chapterId).filter(Boolean).map(String))];
+  const chapters = await Chapter.find({ _id: { $in: chapterIds } });
+  const boardByChapter = new Map(chapters.map(ch => [ch._id.toString(), ch.boardId.toString()]));
+  const boardIds = [...new Set(chapters.map(ch => ch.boardId.toString()))];
+  const boardLanguageMap = new Map();
+  for (const boardId of boardIds) {
+    try {
+      boardLanguageMap.set(boardId, await getBoardLanguages(boardId));
+    } catch (err) {
+      boardLanguageMap.set(boardId, { defaultLanguageId: null });
+    }
+  }
+  const topicIds = topics.map(t => t._id);
+  const translations = await TopicTranslation.find({ topicId: { $in: topicIds } }).populate('languageId', 'name nativeName code');
+  const byTopic = new Map();
+  translations.forEach(t => {
+    const key = t.topicId.toString();
+    if (!byTopic.has(key)) byTopic.set(key, []);
+    byTopic.get(key).push(t);
+  });
+  return topics.map(topic => {
+    const chapterId = topic.chapterId?._id || topic.chapterId;
+    const boardId = chapterId ? boardByChapter.get(String(chapterId)) : null;
+    const defaultLanguageId = boardLanguageMap.get(boardId)?.defaultLanguageId;
+    return withLocalizedFields(topic, byTopic.get(topic._id.toString()) || [], requestedLanguageId, defaultLanguageId, ['name', 'description']);
+  });
+}
+
+exports.getAll = async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.chapterId) filter.chapterId = req.query.chapterId;
+    const topics = await Topic.find(filter)
+      .populate('chapterId', 'name')
+      .sort({ sortOrder: 1 });
+    return success(res, 'Topics fetched', await localizeTopics(topics, req));
+  } catch (err) { return error(res, err.message, 500); }
+};
+
+exports.create = async (req, res) => {
+  try {
+    const chapter = await Chapter.findById(req.body.chapterId);
+    if (!chapter) return error(res, 'Chapter not found', 404);
+    const { languageIds } = await getContentLanguages({ boardId: chapter.boardId, subjectId: chapter.subjectId });
+    const translations = validateTranslations(req.body.translations, languageIds, ['name']);
+    const fallback = translations[0];
+    const topic = await Topic.create({ ...req.body, name: fallback.name, description: fallback.description });
+    await replaceTranslations(TopicTranslation, 'topicId', topic._id, translations, t => ({
+      name: t.name.trim(),
+      description: String(t.description || '').trim(),
+    }));
+    return success(res, 'Topic created', topic, 201);
+  } catch (err) { return error(res, err.message, 400); }
+};
+
+exports.update = async (req, res) => {
+  try {
+    const existing = await Topic.findById(req.params.id);
+    if (!existing) return error(res, 'Topic not found', 404);
+    const chapter = await Chapter.findById(req.body.chapterId || existing.chapterId);
+    if (!chapter) return error(res, 'Chapter not found', 404);
+    const { languageIds } = await getContentLanguages({ boardId: chapter.boardId, subjectId: chapter.subjectId });
+    const translations = validateTranslations(req.body.translations, languageIds, ['name']);
+    const fallback = translations[0];
+    const topic = await Topic.findByIdAndUpdate(req.params.id, { ...req.body, name: fallback.name, description: fallback.description }, { new: true });
+    await replaceTranslations(TopicTranslation, 'topicId', topic._id, translations, t => ({
+      name: t.name.trim(),
+      description: String(t.description || '').trim(),
+    }));
+    return success(res, 'Topic updated', topic);
+  } catch (err) { return error(res, err.message, 400); }
+};
+
+exports.remove = async (req, res) => {
+  try {
+    const topicId = req.params.id;
+    const questions = await Question.find({ topicId }).select('_id');
+    await QuestionTranslation.deleteMany({ questionId: { $in: questions.map(q => q._id) } });
+    await TopicTranslation.deleteMany({ topicId });
+    await Question.deleteMany({ topicId });
+    await Topic.findByIdAndDelete(topicId);
+    return success(res, 'Topic and its questions deleted');
+  } catch (err) { return error(res, err.message, 500); }
+};

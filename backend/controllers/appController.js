@@ -333,11 +333,13 @@ exports.sendOtp = async (req, res) => {
       sentAt: Date.now(),
     };
 
+    console.log(`Student OTP requested for ${email}`);
     await sendOTPEmail(email, otp, 'student');
+    console.log(`Student OTP sent to ${email}`);
     const data = process.env.NODE_ENV === 'production' ? {} : { devOtp: otp };
     return success(res, 'OTP sent to your email', data);
   } catch (err) {
-    console.error('app sendOtp error:', err.message);
+    console.error('app sendOtp error:', err.message, err.code || '');
     return error(res, 'Failed to send OTP. Check email config.', 500);
   }
 };

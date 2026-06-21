@@ -6,12 +6,17 @@ const connectDB = require('./config/db');
 const seedAdmin = require('./utils/seedAdmin');
 
 const app = express();
+const uploadsRoot = path.join(__dirname, 'uploads');
 
 // Middleware
+app.set('trust proxy', true);
 app.use(cors({ origin: '*' }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use('/uploads', express.static(uploadsRoot));
+app.use('/uploads', (req, res) => {
+  res.status(404).json({ status: false, message: 'Upload file not found', data: null });
+});
 
 // Routes
 app.use('/api/v1/auth', require('./routes/auth'));
@@ -30,6 +35,16 @@ app.use('/api/v1/app', require('./routes/app'));
 // Health check
 app.get('/health', (req, res) => res.json({ status: true, message: 'DAMINI+ Admin API Running' }));
 
+app.use('/api', (err, req, res, next) => {
+  console.error('API error:', err);
+  if (res.headersSent) return next(err);
+  return res.status(err.statusCode || err.status || 500).json({
+    status: false,
+    message: err.message || 'Internal server error',
+    data: null,
+  });
+});
+
 // Serve frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.get('*', (req, res) => {
@@ -38,10 +53,20 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+process.on('unhandledRejection', err => {
+  console.error('Unhandled rejection:', err);
+});
+
+process.on('uncaughtException', err => {
+  console.error('Uncaught exception:', err);
+});
+
 connectDB().then(async () => {
   await seedAdmin();
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Admin Panel: http://localhost:${PORT}`);
   });
+  server.requestTimeout = 120000;
+  server.headersTimeout = 125000;
 });

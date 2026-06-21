@@ -1,7 +1,7 @@
 {
   "baseUrl": "http://localhost:5993/api/v1/app",
   "productionBaseUrl": "https://YOUR_DOMAIN.com/api/v1/app",
-  "uploadsNote": "All /api/v1/app responses automatically return full upload URLs, for example http://localhost:5993/uploads/topics/topic.jpg. If no topic image exists, imageUrl is null.",
+  "uploadsNote": "All /api/v1/app responses automatically return full media URLs through the app API, for example http://localhost:5993/api/v1/app/media/topics/topic.jpg. If no topic image exists, imageUrl is null.",
   "authHeader": {
     "Authorization": "Bearer <student_token>"
   },
@@ -316,7 +316,7 @@
             },
             "name": "Linear Equations",
             "description": "Introduction to linear equations",
-            "imageUrl": "http://localhost:5993/uploads/topics/topic-image.jpg",
+            "imageUrl": "http://localhost:5993/api/v1/app/media/topics/topic-image.jpg",
             "notes": "",
             "pdfUrls": [],
             "videoUrls": [],
@@ -381,7 +381,7 @@
           },
           "name": "Linear Equations",
           "description": "Introduction to linear equations",
-          "imageUrl": "http://localhost:5993/uploads/topics/topic-image.jpg",
+          "imageUrl": "http://localhost:5993/api/v1/app/media/topics/topic-image.jpg",
           "notes": "",
           "pdfUrls": [],
           "videoUrls": [],
@@ -479,7 +479,7 @@
             "_id": "TOPIC_ID",
             "name": "Linear Equations",
             "description": "Introduction to linear equations",
-            "imageUrl": "http://localhost:5993/uploads/topics/topic-image.jpg",
+            "imageUrl": "http://localhost:5993/api/v1/app/media/topics/topic-image.jpg",
             "notes": "",
             "pdfUrls": [],
             "videoUrls": [],
@@ -516,7 +516,7 @@
           "subjectId": "SUBJECT_ID",
           "topicId": "TOPIC_ID",
           "questionId": "QUESTION_ID",
-          "imageUrl": "http://localhost:5993/uploads/answers/answer-photo.jpg",
+          "imageUrl": "http://localhost:5993/api/v1/app/media/answers/answer-photo.jpg",
           "status": "submitted",
           "submittedAt": "2026-06-21T00:00:00.000Z",
           "createdAt": "2026-06-21T00:00:00.000Z",
@@ -551,7 +551,7 @@
               "question": "Solve 2x + 3 = 7",
               "marks": 5
             },
-            "imageUrl": "http://localhost:5993/uploads/answers/answer-photo.jpg",
+            "imageUrl": "http://localhost:5993/api/v1/app/media/answers/answer-photo.jpg",
             "status": "submitted",
             "submittedAt": "2026-06-21T00:00:00.000Z",
             "evaluation": null
@@ -691,7 +691,7 @@
                 "_id": "QUESTION_ID",
                 "question": "Solve 2x + 3 = 7"
               },
-              "imageUrl": "http://localhost:5993/uploads/answers/answer-photo.jpg",
+              "imageUrl": "http://localhost:5993/api/v1/app/media/answers/answer-photo.jpg",
               "status": "submitted",
               "submittedAt": "2026-06-21T00:00:00.000Z"
             }

@@ -13,6 +13,18 @@ const {
   withLocalizedFields,
 } = require('../utils/translations');
 
+function parseTopicBody(req, existing = null) {
+  const body = { ...req.body };
+  if (typeof body.translations === 'string') body.translations = JSON.parse(body.translations);
+  if (typeof body.sortOrder !== 'undefined') body.sortOrder = parseInt(body.sortOrder) || 0;
+  if (typeof body.isActive !== 'undefined') body.isActive = String(body.isActive) === 'true';
+  if (req.file) body.imageUrl = `/uploads/topics/${req.file.filename}`;
+  if (String(body.removeImage || '') === 'true') body.imageUrl = null;
+  delete body.removeImage;
+  if (!Object.prototype.hasOwnProperty.call(body, 'imageUrl') && existing) body.imageUrl = existing.imageUrl || null;
+  return body;
+}
+
 async function localizeTopics(topics, req) {
   const requestedLanguageId = await resolveLanguageId(req);
   const chapterIds = [...new Set(topics.map(t => t.chapterId?._id || t.chapterId).filter(Boolean).map(String))];
@@ -56,12 +68,13 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const chapter = await Chapter.findById(req.body.chapterId);
+    const body = parseTopicBody(req);
+    const chapter = await Chapter.findById(body.chapterId);
     if (!chapter) return error(res, 'Chapter not found', 404);
     const { languageIds } = await getContentLanguages({ boardId: chapter.boardId, subjectId: chapter.subjectId });
-    const translations = validateTranslations(req.body.translations, languageIds, ['name']);
+    const translations = validateTranslations(body.translations, languageIds, ['name']);
     const fallback = translations[0];
-    const topic = await Topic.create({ ...req.body, name: fallback.name, description: fallback.description });
+    const topic = await Topic.create({ ...body, imageUrl: body.imageUrl || null, name: fallback.name, description: fallback.description });
     await replaceTranslations(TopicTranslation, 'topicId', topic._id, translations, t => ({
       name: t.name.trim(),
       description: String(t.description || '').trim(),
@@ -74,12 +87,13 @@ exports.update = async (req, res) => {
   try {
     const existing = await Topic.findById(req.params.id);
     if (!existing) return error(res, 'Topic not found', 404);
-    const chapter = await Chapter.findById(req.body.chapterId || existing.chapterId);
+    const body = parseTopicBody(req, existing);
+    const chapter = await Chapter.findById(body.chapterId || existing.chapterId);
     if (!chapter) return error(res, 'Chapter not found', 404);
     const { languageIds } = await getContentLanguages({ boardId: chapter.boardId, subjectId: chapter.subjectId });
-    const translations = validateTranslations(req.body.translations, languageIds, ['name']);
+    const translations = validateTranslations(body.translations, languageIds, ['name']);
     const fallback = translations[0];
-    const topic = await Topic.findByIdAndUpdate(req.params.id, { ...req.body, name: fallback.name, description: fallback.description }, { new: true });
+    const topic = await Topic.findByIdAndUpdate(req.params.id, { ...body, name: fallback.name, description: fallback.description }, { new: true });
     await replaceTranslations(TopicTranslation, 'topicId', topic._id, translations, t => ({
       name: t.name.trim(),
       description: String(t.description || '').trim(),

@@ -1,0 +1,822 @@
+{
+  "baseUrl": "http://localhost:5993/api/v1/app",
+  "productionBaseUrl": "https://YOUR_DOMAIN.com/api/v1/app",
+  "uploadsNote": "All /api/v1/app responses automatically return full upload URLs, for example http://localhost:5993/uploads/topics/topic.jpg. If no topic image exists, imageUrl is null.",
+  "authHeader": {
+    "Authorization": "Bearer <student_token>"
+  },
+  "commonSuccessResponse": {
+    "status": true,
+    "message": "Success message",
+    "data": {}
+  },
+  "commonErrorResponse": {
+    "status": false,
+    "message": "Error message",
+    "data": null
+  },
+  "endpoints": [
+    {
+      "name": "Send OTP",
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/send-otp",
+      "authRequired": false,
+      "requestBody": {
+        "email": "student@example.com",
+        "name": "Student Name"
+      },
+      "successResponse": {
+        "status": true,
+        "message": "OTP sent to your email",
+        "data": {
+          "devOtp": "123456"
+        }
+      }
+    },
+    {
+      "name": "Verify OTP / Login",
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/verify-otp",
+      "authRequired": false,
+      "requestBody": {
+        "email": "student@example.com",
+        "otp": "123456",
+        "name": "Student Name"
+      },
+      "successResponse": {
+        "status": true,
+        "message": "Login successful",
+        "data": {
+          "token": "JWT_TOKEN",
+          "user": {
+            "id": "USER_ID",
+            "name": "Student Name",
+            "email": "student@example.com",
+            "isVerified": true,
+            "boardId": null,
+            "classId": null,
+            "languageId": null,
+            "subscriptionId": null,
+            "subscriptionExpiry": null
+          }
+        }
+      }
+    },
+    {
+      "name": "Get Profile",
+      "method": "GET",
+      "url": "{{baseUrl}}/me",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Profile fetched",
+        "data": {
+          "id": "USER_ID",
+          "name": "Student Name",
+          "email": "student@example.com",
+          "isVerified": true,
+          "boardId": {
+            "_id": "BOARD_ID",
+            "name": "CBSE",
+            "fullName": "Central Board of Secondary Education"
+          },
+          "classId": {
+            "_id": "CLASS_ID",
+            "name": "Class 10",
+            "gradeGroup": "Secondary"
+          },
+          "languageId": {
+            "_id": "LANGUAGE_ID",
+            "name": "English",
+            "nativeName": "English",
+            "code": "en"
+          },
+          "subscriptionId": {
+            "_id": "SUBSCRIPTION_ID",
+            "name": "Class 10 Plan",
+            "price": 499,
+            "durationDays": 365,
+            "boardId": "BOARD_ID",
+            "classId": "CLASS_ID"
+          },
+          "subscriptionExpiry": "2027-06-21T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Update Profile",
+      "method": "PUT",
+      "url": "{{baseUrl}}/me",
+      "authRequired": true,
+      "requestBody": {
+        "name": "Student Name",
+        "languageId": "LANGUAGE_ID"
+      },
+      "successResponse": {
+        "status": true,
+        "message": "Profile updated",
+        "data": {
+          "id": "USER_ID",
+          "name": "Student Name",
+          "email": "student@example.com",
+          "isVerified": true,
+          "boardId": "BOARD_ID",
+          "classId": "CLASS_ID",
+          "languageId": "LANGUAGE_ID",
+          "subscriptionId": "SUBSCRIPTION_ID",
+          "subscriptionExpiry": "2027-06-21T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Select Board And Class",
+      "method": "PUT",
+      "url": "{{baseUrl}}/select-board-class",
+      "authRequired": true,
+      "requestBody": {
+        "boardId": "BOARD_ID",
+        "classId": "CLASS_ID",
+        "languageId": "LANGUAGE_ID"
+      },
+      "successResponse": {
+        "status": true,
+        "message": "Board and class selected",
+        "data": {
+          "user": {
+            "id": "USER_ID",
+            "name": "Student Name",
+            "email": "student@example.com",
+            "isVerified": true,
+            "boardId": "BOARD_ID",
+            "classId": "CLASS_ID",
+            "languageId": "LANGUAGE_ID",
+            "subscriptionId": null,
+            "subscriptionExpiry": null
+          },
+          "contentLocked": true
+        }
+      }
+    },
+    {
+      "name": "Get Languages",
+      "method": "GET",
+      "url": "{{baseUrl}}/languages",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Languages fetched",
+        "data": [
+          {
+            "_id": "LANGUAGE_ID",
+            "name": "English",
+            "nativeName": "English",
+            "code": "en",
+            "isActive": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Boards",
+      "method": "GET",
+      "url": "{{baseUrl}}/boards",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Boards fetched",
+        "data": [
+          {
+            "_id": "BOARD_ID",
+            "name": "CBSE",
+            "fullName": "Central Board of Secondary Education",
+            "languageIds": [
+              {
+                "_id": "LANGUAGE_ID",
+                "name": "English",
+                "nativeName": "English",
+                "code": "en"
+              }
+            ],
+            "defaultLanguageId": {
+              "_id": "LANGUAGE_ID",
+              "name": "English",
+              "nativeName": "English",
+              "code": "en"
+            },
+            "isActive": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Classes",
+      "method": "GET",
+      "url": "{{baseUrl}}/classes?boardId=BOARD_ID&availablePlans=true",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Classes fetched",
+        "data": [
+          {
+            "_id": "CLASS_ID",
+            "boardId": {
+              "_id": "BOARD_ID",
+              "name": "CBSE",
+              "fullName": "Central Board of Secondary Education"
+            },
+            "name": "Class 10",
+            "gradeGroup": "Secondary",
+            "sortOrder": 1,
+            "isActive": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Subjects",
+      "method": "GET",
+      "url": "{{baseUrl}}/subjects?languageId=LANGUAGE_ID",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Subjects fetched",
+        "data": [
+          {
+            "_id": "SUBJECT_ID",
+            "boardId": {
+              "_id": "BOARD_ID",
+              "name": "CBSE",
+              "fullName": "Central Board of Secondary Education"
+            },
+            "classId": {
+              "_id": "CLASS_ID",
+              "name": "Class 10",
+              "gradeGroup": "Secondary"
+            },
+            "name": "Mathematics",
+            "languageId": {
+              "_id": "LANGUAGE_ID",
+              "name": "English",
+              "nativeName": "English",
+              "code": "en"
+            },
+            "languageIds": [],
+            "isActive": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Chapters",
+      "method": "GET",
+      "url": "{{baseUrl}}/chapters?subjectId=SUBJECT_ID&languageId=LANGUAGE_ID",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Chapters fetched",
+        "data": [
+          {
+            "_id": "CHAPTER_ID",
+            "boardId": {
+              "_id": "BOARD_ID",
+              "name": "CBSE"
+            },
+            "classId": {
+              "_id": "CLASS_ID",
+              "name": "Class 10"
+            },
+            "subjectId": {
+              "_id": "SUBJECT_ID",
+              "name": "Mathematics"
+            },
+            "name": "Algebra",
+            "sortOrder": 1,
+            "isActive": true,
+            "translations": [],
+            "selectedLanguageId": "LANGUAGE_ID",
+            "defaultLanguageId": "LANGUAGE_ID"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Topics By Chapter",
+      "method": "GET",
+      "url": "{{baseUrl}}/topics?chapterId=CHAPTER_ID&languageId=LANGUAGE_ID",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Topics fetched",
+        "data": [
+          {
+            "_id": "TOPIC_ID",
+            "chapterId": {
+              "_id": "CHAPTER_ID",
+              "name": "Algebra"
+            },
+            "name": "Linear Equations",
+            "description": "Introduction to linear equations",
+            "imageUrl": "http://localhost:5993/uploads/topics/topic-image.jpg",
+            "notes": "",
+            "pdfUrls": [],
+            "videoUrls": [],
+            "content": "",
+            "sortOrder": 1,
+            "isActive": true,
+            "translations": [],
+            "selectedLanguageId": "LANGUAGE_ID",
+            "defaultLanguageId": "LANGUAGE_ID"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Topics By Subject",
+      "method": "GET",
+      "url": "{{baseUrl}}/subjects/SUBJECT_ID/topics?languageId=LANGUAGE_ID",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Subject topics fetched",
+        "data": [
+          {
+            "_id": "TOPIC_ID",
+            "chapterId": {
+              "_id": "CHAPTER_ID",
+              "name": "Algebra",
+              "sortOrder": 1
+            },
+            "name": "Linear Equations",
+            "description": "Introduction to linear equations",
+            "imageUrl": null,
+            "notes": "",
+            "pdfUrls": [],
+            "videoUrls": [],
+            "content": "",
+            "sortOrder": 1,
+            "isActive": true,
+            "translations": [],
+            "selectedLanguageId": "LANGUAGE_ID",
+            "defaultLanguageId": "LANGUAGE_ID"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Topic Detail",
+      "method": "GET",
+      "url": "{{baseUrl}}/topics/TOPIC_ID",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Topic fetched",
+        "data": {
+          "_id": "TOPIC_ID",
+          "chapterId": {
+            "_id": "CHAPTER_ID",
+            "name": "Algebra",
+            "subjectId": "SUBJECT_ID",
+            "boardId": "BOARD_ID",
+            "classId": "CLASS_ID"
+          },
+          "name": "Linear Equations",
+          "description": "Introduction to linear equations",
+          "imageUrl": "http://localhost:5993/uploads/topics/topic-image.jpg",
+          "notes": "",
+          "pdfUrls": [],
+          "videoUrls": [],
+          "content": "",
+          "sortOrder": 1,
+          "isActive": true
+        }
+      }
+    },
+    {
+      "name": "Get Questions",
+      "method": "GET",
+      "url": "{{baseUrl}}/questions?topicId=TOPIC_ID&page=1&limit=20&languageId=LANGUAGE_ID",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Questions fetched",
+        "data": {
+          "questions": [
+            {
+              "_id": "QUESTION_ID",
+              "boardId": {
+                "_id": "BOARD_ID",
+                "name": "CBSE"
+              },
+              "classId": {
+                "_id": "CLASS_ID",
+                "name": "Class 10"
+              },
+              "subjectId": {
+                "_id": "SUBJECT_ID",
+                "name": "Mathematics"
+              },
+              "topicId": {
+                "_id": "TOPIC_ID",
+                "name": "Linear Equations"
+              },
+              "question": "Solve 2x + 3 = 7",
+              "answer": "x = 2",
+              "steps": "2x + 3 = 7, 2x = 4, x = 2",
+              "marks": 5,
+              "difficulty": "easy",
+              "sortOrder": 1,
+              "isActive": true,
+              "translations": [],
+              "selectedLanguageId": "LANGUAGE_ID",
+              "defaultLanguageId": "LANGUAGE_ID"
+            }
+          ],
+          "total": 1,
+          "page": 1,
+          "totalPages": 1
+        }
+      }
+    },
+    {
+      "name": "Update Last Visited",
+      "method": "PUT",
+      "url": "{{baseUrl}}/resume",
+      "authRequired": true,
+      "requestBody": {
+        "subjectId": "SUBJECT_ID",
+        "topicId": "TOPIC_ID"
+      },
+      "successResponse": {
+        "status": true,
+        "message": "Last visited topic updated",
+        "data": {
+          "lastVisitedSubject": {
+            "_id": "SUBJECT_ID",
+            "name": "Mathematics"
+          },
+          "lastVisitedTopic": {
+            "_id": "TOPIC_ID",
+            "name": "Linear Equations"
+          },
+          "lastVisitedAt": "2026-06-21T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Get Resume Learning",
+      "method": "GET",
+      "url": "{{baseUrl}}/resume",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Resume learning fetched",
+        "data": {
+          "subject": {
+            "_id": "SUBJECT_ID",
+            "name": "Mathematics"
+          },
+          "topic": {
+            "_id": "TOPIC_ID",
+            "name": "Linear Equations",
+            "description": "Introduction to linear equations",
+            "imageUrl": "http://localhost:5993/uploads/topics/topic-image.jpg",
+            "notes": "",
+            "pdfUrls": [],
+            "videoUrls": [],
+            "content": ""
+          },
+          "lastVisitedAt": "2026-06-21T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Submit Answer Image",
+      "method": "POST",
+      "url": "{{baseUrl}}/questions/QUESTION_ID/submit",
+      "authRequired": true,
+      "contentType": "multipart/form-data",
+      "acceptedFileFields": [
+        "image",
+        "file",
+        "answerImage",
+        "answer_image",
+        "upload"
+      ],
+      "formData": {
+        "image": "answer-photo.jpg"
+      },
+      "successResponse": {
+        "status": true,
+        "message": "Answer submitted",
+        "data": {
+          "_id": "SUBMISSION_ID",
+          "studentId": "USER_ID",
+          "boardId": "BOARD_ID",
+          "classId": "CLASS_ID",
+          "subjectId": "SUBJECT_ID",
+          "topicId": "TOPIC_ID",
+          "questionId": "QUESTION_ID",
+          "imageUrl": "http://localhost:5993/uploads/answers/answer-photo.jpg",
+          "status": "submitted",
+          "submittedAt": "2026-06-21T00:00:00.000Z",
+          "createdAt": "2026-06-21T00:00:00.000Z",
+          "updatedAt": "2026-06-21T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "Get Submission History",
+      "method": "GET",
+      "url": "{{baseUrl}}/submissions?subjectId=SUBJECT_ID&topicId=TOPIC_ID",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Submission history fetched",
+        "data": [
+          {
+            "_id": "SUBMISSION_ID",
+            "studentId": "USER_ID",
+            "boardId": "BOARD_ID",
+            "classId": "CLASS_ID",
+            "subjectId": {
+              "_id": "SUBJECT_ID",
+              "name": "Mathematics"
+            },
+            "topicId": {
+              "_id": "TOPIC_ID",
+              "name": "Linear Equations"
+            },
+            "questionId": {
+              "_id": "QUESTION_ID",
+              "question": "Solve 2x + 3 = 7",
+              "marks": 5
+            },
+            "imageUrl": "http://localhost:5993/uploads/answers/answer-photo.jpg",
+            "status": "submitted",
+            "submittedAt": "2026-06-21T00:00:00.000Z",
+            "evaluation": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Progress",
+      "method": "GET",
+      "url": "{{baseUrl}}/progress",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Progress fetched",
+        "data": {
+          "overall": {
+            "completedQuestions": 1,
+            "totalQuestions": 10,
+            "completedSubjects": 0,
+            "totalSubjects": 3,
+            "percentage": 10
+          },
+          "subjects": [
+            {
+              "subjectId": "SUBJECT_ID",
+              "name": "Mathematics",
+              "completedTopics": 0,
+              "totalTopics": 2,
+              "percentage": 0,
+              "topics": [
+                {
+                  "topicId": "TOPIC_ID",
+                  "name": "Linear Equations",
+                  "completedQuestions": 1,
+                  "totalQuestions": 5,
+                  "percentage": 20
+                }
+              ]
+            }
+          ],
+          "pendingQuestions": 9,
+          "submittedAnswers": 1
+        }
+      }
+    },
+    {
+      "name": "Get Results",
+      "method": "GET",
+      "url": "{{baseUrl}}/results",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Results fetched",
+        "data": {
+          "subjects": [
+            {
+              "subjectId": "SUBJECT_ID",
+              "name": "Mathematics",
+              "marksObtained": 8,
+              "totalMarks": 10,
+              "percentage": 80,
+              "grade": "A"
+            }
+          ],
+          "topics": [
+            {
+              "topicId": "TOPIC_ID",
+              "name": "Linear Equations",
+              "subjectId": "SUBJECT_ID",
+              "marksObtained": 8,
+              "totalMarks": 10,
+              "percentage": 80,
+              "grade": "A"
+            }
+          ],
+          "overall": {
+            "marksObtained": 8,
+            "totalMarks": 10,
+            "percentage": 80,
+            "grade": "A"
+          }
+        }
+      }
+    },
+    {
+      "name": "Get Dashboard",
+      "method": "GET",
+      "url": "{{baseUrl}}/dashboard",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Dashboard fetched",
+        "data": {
+          "user": {
+            "id": "USER_ID",
+            "name": "Student Name",
+            "email": "student@example.com",
+            "isVerified": true,
+            "boardId": "BOARD_ID",
+            "classId": "CLASS_ID",
+            "languageId": "LANGUAGE_ID",
+            "subscriptionId": "SUBSCRIPTION_ID",
+            "subscriptionExpiry": "2027-06-21T00:00:00.000Z"
+          },
+          "activeSubscription": {
+            "_id": "SUBSCRIPTION_ID",
+            "name": "Class 10 Plan",
+            "price": 499,
+            "durationDays": 365,
+            "boardId": "BOARD_ID",
+            "classId": "CLASS_ID"
+          },
+          "contentLocked": false,
+          "overallProgress": {
+            "completedQuestions": 1,
+            "totalQuestions": 10,
+            "completedSubjects": 0,
+            "totalSubjects": 3,
+            "percentage": 10
+          },
+          "subjectProgress": [],
+          "pendingQuestions": 9,
+          "submittedAnswers": 1,
+          "latestSubmissions": [
+            {
+              "_id": "SUBMISSION_ID",
+              "subjectId": {
+                "_id": "SUBJECT_ID",
+                "name": "Mathematics"
+              },
+              "topicId": {
+                "_id": "TOPIC_ID",
+                "name": "Linear Equations"
+              },
+              "questionId": {
+                "_id": "QUESTION_ID",
+                "question": "Solve 2x + 3 = 7"
+              },
+              "imageUrl": "http://localhost:5993/uploads/answers/answer-photo.jpg",
+              "status": "submitted",
+              "submittedAt": "2026-06-21T00:00:00.000Z"
+            }
+          ],
+          "latestResults": null
+        }
+      }
+    },
+    {
+      "name": "Get Subscriptions",
+      "method": "GET",
+      "url": "{{baseUrl}}/subscriptions?boardId=BOARD_ID&classId=CLASS_ID",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Subscriptions fetched",
+        "data": [
+          {
+            "_id": "SUBSCRIPTION_ID",
+            "boardId": {
+              "_id": "BOARD_ID",
+              "name": "CBSE",
+              "fullName": "Central Board of Secondary Education"
+            },
+            "classId": {
+              "_id": "CLASS_ID",
+              "name": "Class 10",
+              "gradeGroup": "Secondary"
+            },
+            "name": "Class 10 Plan",
+            "price": 499,
+            "durationDays": 365,
+            "description": "Full class access",
+            "features": [],
+            "isActive": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "Purchase Subscription",
+      "method": "POST",
+      "url": "{{baseUrl}}/purchases",
+      "authRequired": true,
+      "requestBody": {
+        "subscriptionId": "SUBSCRIPTION_ID",
+        "paymentId": "PAYMENT_ID"
+      },
+      "successResponse": {
+        "status": true,
+        "message": "Subscription purchased successfully",
+        "data": {
+          "purchase": {
+            "_id": "PURCHASE_ID",
+            "userId": "USER_ID",
+            "subscriptionId": {
+              "_id": "SUBSCRIPTION_ID",
+              "name": "Class 10 Plan",
+              "price": 499,
+              "durationDays": 365
+            },
+            "boardId": {
+              "_id": "BOARD_ID",
+              "name": "CBSE",
+              "fullName": "Central Board of Secondary Education"
+            },
+            "classId": {
+              "_id": "CLASS_ID",
+              "name": "Class 10",
+              "gradeGroup": "Secondary"
+            },
+            "amount": 499,
+            "paymentId": "PAYMENT_ID",
+            "status": "success",
+            "expiryDate": "2027-06-21T00:00:00.000Z"
+          },
+          "user": {
+            "id": "USER_ID",
+            "name": "Student Name",
+            "email": "student@example.com",
+            "isVerified": true,
+            "boardId": "BOARD_ID",
+            "classId": "CLASS_ID",
+            "languageId": "LANGUAGE_ID",
+            "subscriptionId": "SUBSCRIPTION_ID",
+            "subscriptionExpiry": "2027-06-21T00:00:00.000Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "Get My Purchases",
+      "method": "GET",
+      "url": "{{baseUrl}}/purchases",
+      "authRequired": true,
+      "successResponse": {
+        "status": true,
+        "message": "Purchases fetched",
+        "data": [
+          {
+            "_id": "PURCHASE_ID",
+            "userId": "USER_ID",
+            "subscriptionId": {
+              "_id": "SUBSCRIPTION_ID",
+              "name": "Class 10 Plan",
+              "price": 499,
+              "durationDays": 365
+            },
+            "boardId": {
+              "_id": "BOARD_ID",
+              "name": "CBSE",
+              "fullName": "Central Board of Secondary Education"
+            },
+            "classId": {
+              "_id": "CLASS_ID",
+              "name": "Class 10",
+              "gradeGroup": "Secondary"
+            },
+            "amount": 499,
+            "paymentId": "PAYMENT_ID",
+            "status": "success",
+            "expiryDate": "2027-06-21T00:00:00.000Z"
+          }
+        ]
+      }
+    }
+  ]
+}

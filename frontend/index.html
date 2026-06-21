@@ -677,9 +677,11 @@ let boardsData = [], langsData = [], classesData = [], subjectsData = [], subsDa
 let usersPage = 1, purchasePage = 1;
 
 async function api(method, path, body = null) {
-  const opts = { method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } };
+  const isFormData = body instanceof FormData;
+  const opts = { method, headers: { 'Accept': 'application/json' } };
+  if (!isFormData) opts.headers['Content-Type'] = 'application/json';
   if (token) opts.headers['Authorization'] = 'Bearer ' + token;
-  if (body) opts.body = JSON.stringify(body);
+  if (body) opts.body = isFormData ? body : JSON.stringify(body);
   const res = await fetch(API + path, opts);
   return res.json();
 }
@@ -1353,11 +1355,26 @@ async function openTopicModal(chapterId, topicId = null) {
         { key: 'name', label: 'Topic Name', type: 'input', required: true },
         { key: 'description', label: 'Description', type: 'textarea', rows: 2 }
       ])}</div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Topic Image</label>
+        ${topic?.imageUrl ? `<div style="margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <img src="${topic.imageUrl}" style="width:92px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" />
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)"><input id="f-removeImage" type="checkbox" /> Remove image</label>
+        </div>` : ''}
+        <input id="f-image" type="file" accept="image/*" />
+      </div>
       <div class="form-group"><label>Sort Order</label><input id="f-sortOrder" type="number" value="${topic?.sortOrder||0}" /></div>
       ${topic?`<div class="form-group"><label>Status</label><select id="f-isActive"><option value="true" ${topic.isActive?'selected':''}>Active</option><option value="false" ${!topic.isActive?'selected':''}>Inactive</option></select></div>`:''}
     </div>`, async () => {
-    const body = { chapterId, sortOrder:parseInt(document.getElementById('f-sortOrder').value)||0, translations: collectTranslations(boardLanguages, ['name', 'description']) };
-    if (topic) body.isActive = document.getElementById('f-isActive').value==='true';
+    const body = new FormData();
+    body.append('chapterId', chapterId);
+    body.append('sortOrder', String(parseInt(document.getElementById('f-sortOrder').value)||0));
+    body.append('translations', JSON.stringify(collectTranslations(boardLanguages, ['name', 'description'])));
+    const image = document.getElementById('f-image').files[0];
+    if (image) body.append('image', image);
+    const removeImage = document.getElementById('f-removeImage');
+    if (removeImage?.checked) body.append('removeImage', 'true');
+    if (topic) body.append('isActive', document.getElementById('f-isActive').value);
     const res = await api(topic?'PUT':'POST', `/topics${topic?'/'+topic._id:''}`, body);
     if (!res.status) throw new Error(res.message);
     toast(topic?'Topic updated':'Topic created'); closeModal(); topicsData[chapterId]=undefined; renderChaptersHierarchy();

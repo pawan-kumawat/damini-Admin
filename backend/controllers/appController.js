@@ -172,9 +172,11 @@ async function buildProgress(user) {
   const submittedAnswers = submissions.length;
   const summary = {
     overall: {
+      completedQuestions: submittedAnswers,
+      totalQuestions,
       completedSubjects,
       totalSubjects: subjects.length,
-      percentage: pct(completedSubjects, subjects.length),
+      percentage: pct(submittedAnswers, totalQuestions),
     },
     subjects: subjectProgress,
     pendingQuestions: Math.max(totalQuestions - submittedAnswers, 0),
@@ -621,7 +623,7 @@ exports.getResumeLearning = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .populate('lastVisitedSubjectId', 'name')
-      .populate('lastVisitedTopicId', 'name description notes pdfUrls videoUrls content');
+      .populate('lastVisitedTopicId', 'name description imageUrl notes pdfUrls videoUrls content');
     return success(res, 'Resume learning fetched', {
       subject: user.lastVisitedSubjectId,
       topic: user.lastVisitedTopicId,

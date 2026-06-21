@@ -4,6 +4,7 @@ const topicSchema = new mongoose.Schema({
   chapterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chapter', required: true },
   name: { type: String, required: true },
   description: { type: String },
+  imageUrl: { type: String, default: null },
   notes: { type: String },
   pdfUrls: [{ type: String }],
   videoUrls: [{ type: String }],

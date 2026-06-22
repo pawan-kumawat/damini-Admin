@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const Board = require('../models/Board');
 const Class = require('../models/Class');
 const Language = require('../models/Language');
@@ -26,6 +28,38 @@ const {
 } = require('../utils/translations');
 
 const appOtpStore = {};
+const uploadsRoot = path.join(__dirname, '../uploads');
+
+function answerUploadPathFromUrl(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== 'string') return null;
+  let pathname = imageUrl;
+  try {
+    pathname = new URL(imageUrl).pathname;
+  } catch (err) {}
+  const match = pathname.match(/(?:\/uploads\/answers|\/api\/v1\/app\/media\/answers)\/([^/?#]+)$/);
+  if (!match) return null;
+  const filePath = path.join(uploadsRoot, 'answers', path.basename(match[1]));
+  return filePath.startsWith(path.join(uploadsRoot, 'answers')) ? filePath : null;
+}
+
+function deleteAnswerUpload(imageUrl) {
+  const filePath = answerUploadPathFromUrl(imageUrl);
+  if (!filePath) return;
+  fs.unlink(filePath, err => {
+    if (err && err.code !== 'ENOENT') {
+      console.error(`Failed to delete answer upload ${filePath}:`, err);
+    }
+  });
+}
+
+function deleteUploadedFile(file) {
+  if (!file?.path) return;
+  fs.unlink(file.path, err => {
+    if (err && err.code !== 'ENOENT') {
+      console.error(`Failed to delete uploaded file ${file.path}:`, err);
+    }
+  });
+}
 
 function generateToken(userId) {
   return jwt.sign({ id: userId, type: 'user' }, process.env.JWT_SECRET, {
@@ -196,6 +230,121 @@ async function buildProgress(user) {
   );
 
   return summary;
+}
+
+async function getTopicProgressMap(req, topicIds) {
+  const scope = subscriptionScope(req);
+  const ids = [...new Set((topicIds || []).filter(Boolean).map(String))];
+  const progressMap = new Map(ids.map(topicId => [topicId, {
+    completedQuestions: 0,
+    totalQuestions: 0,
+    percentage: 0,
+    isCompleted: false,
+    readOnly: false,
+  }]));
+  if (!ids.length || !scope?.boardId || !scope?.classId) return progressMap;
+
+  const questions = await Question.find({
+    boardId: scope.boardId,
+    classId: scope.classId,
+    topicId: { $in: ids },
+    isActive: true,
+  }).select('_id topicId');
+  const questionIds = questions.map(question => question._id);
+  const submissions = await AnswerSubmission.find({
+    studentId: req.user._id,
+    questionId: { $in: questionIds },
+  }).select('questionId topicId status imageUrl submittedAt');
+  const completedQuestionIds = new Set(submissions.map(submission => String(submission.questionId)));
+  const storedProgress = await StudentProgress.find({
+    studentId: req.user._id,
+    boardId: scope.boardId,
+    classId: scope.classId,
+    topicId: { $in: ids },
+  }).select('topicId completedQuestions totalQuestions percentage');
+  const storedByTopic = new Map(storedProgress.map(row => [String(row.topicId), row]));
+
+  ids.forEach(topicId => {
+    const topicQuestions = questions.filter(question => String(question.topicId) === topicId);
+    const completedQuestions = topicQuestions.filter(question => completedQuestionIds.has(String(question._id))).length;
+    const stored = storedByTopic.get(topicId);
+    const totalQuestions = Math.max(topicQuestions.length, stored?.totalQuestions || 0);
+    const storedCompleted = stored?.percentage >= 100;
+    const isCompleted = storedCompleted || (totalQuestions > 0 && completedQuestions >= totalQuestions);
+    progressMap.set(topicId, {
+      completedQuestions: Math.max(completedQuestions, stored?.completedQuestions || 0),
+      totalQuestions,
+      percentage: isCompleted ? 100 : pct(completedQuestions, totalQuestions),
+      isCompleted,
+      readOnly: false,
+    });
+  });
+
+  return progressMap;
+}
+
+async function withTopicProgress(items, req) {
+  const list = Array.isArray(items) ? items : [items];
+  const topicIds = list.map(item => String(item._id || item.topicId)).filter(Boolean);
+  const progressMap = await getTopicProgressMap(req, topicIds);
+  const decorated = list.map(item => {
+    const plain = item?.toObject ? item.toObject() : { ...item };
+    const progress = progressMap.get(String(plain._id || plain.topicId)) || {
+      completedQuestions: 0,
+      totalQuestions: 0,
+      percentage: 0,
+      isCompleted: false,
+      readOnly: false,
+    };
+    return {
+      ...plain,
+      progress,
+      isCompleted: progress.isCompleted,
+      readOnly: progress.readOnly,
+    };
+  });
+  return Array.isArray(items) ? decorated : decorated[0];
+}
+
+async function withSubjectProgress(subjects, req) {
+  const scope = subscriptionScope(req);
+  if (!scope?.boardId || !scope?.classId || !subjects.length) return subjects;
+  const subjectIds = subjects.map(subject => String(subject._id));
+  const chapters = await Chapter.find({
+    boardId: scope.boardId,
+    classId: scope.classId,
+    subjectId: { $in: subjectIds },
+    isActive: true,
+  }).select('_id subjectId');
+  const topics = await Topic.find({
+    chapterId: { $in: chapters.map(chapter => chapter._id) },
+    isActive: true,
+  }).select('_id chapterId');
+  const progressMap = await getTopicProgressMap(req, topics.map(topic => topic._id));
+  const chapterById = new Map(chapters.map(chapter => [String(chapter._id), chapter]));
+  const topicsBySubject = new Map();
+  topics.forEach(topic => {
+    const chapter = chapterById.get(String(topic.chapterId));
+    if (!chapter) return;
+    const subjectId = String(chapter.subjectId);
+    if (!topicsBySubject.has(subjectId)) topicsBySubject.set(subjectId, []);
+    topicsBySubject.get(subjectId).push(topic);
+  });
+
+  return subjects.map(subject => {
+    const plain = subject?.toObject ? subject.toObject() : { ...subject };
+    const subjectTopics = topicsBySubject.get(String(plain._id)) || [];
+    const completedTopics = subjectTopics.filter(topic => progressMap.get(String(topic._id))?.isCompleted).length;
+    const totalTopics = subjectTopics.length;
+    const progress = {
+      completedTopics,
+      totalTopics,
+      percentage: pct(completedTopics, totalTopics),
+      isCompleted: totalTopics > 0 && completedTopics >= totalTopics,
+      readOnly: totalTopics > 0 && completedTopics >= totalTopics,
+    };
+    return { ...plain, progress, isCompleted: progress.isCompleted, readOnly: progress.readOnly };
+  });
 }
 
 async function buildResults(user) {
@@ -494,7 +643,7 @@ exports.getSubjects = async (req, res) => {
       .populate('languageIds', 'name nativeName code')
       .populate('languageId', 'name nativeName code')
       .sort({ name: 1 });
-    return success(res, 'Subjects fetched', subjects);
+    return success(res, 'Subjects fetched', await withSubjectProgress(subjects, req));
   } catch (err) { return error(res, err.message, 500); }
 };
 
@@ -526,7 +675,8 @@ exports.getTopics = async (req, res) => {
       filter.chapterId = { $in: chapters.map(chapter => chapter._id) };
     }
     const topics = await Topic.find(filter).populate('chapterId', 'name').sort({ sortOrder: 1, name: 1 });
-    return success(res, 'Topics fetched', await localizeTopics(topics, req));
+    const localized = await localizeTopics(topics, req);
+    return success(res, 'Topics fetched', await withTopicProgress(localized, req));
   } catch (err) { return error(res, err.message, 500); }
 };
 
@@ -550,7 +700,8 @@ exports.getSubjectTopics = async (req, res) => {
     const topics = await Topic.find({ chapterId: { $in: chapters.map(chapter => chapter._id) }, isActive: true })
       .populate('chapterId', 'name sortOrder')
       .sort({ sortOrder: 1, name: 1 });
-    return success(res, 'Subject topics fetched', await localizeTopics(topics, req));
+    const localized = await localizeTopics(topics, req);
+    return success(res, 'Subject topics fetched', await withTopicProgress(localized, req));
   } catch (err) { return error(res, err.message, 500); }
 };
 
@@ -567,7 +718,7 @@ exports.getTopicDetail = async (req, res) => {
       lastVisitedTopicId: topic._id,
       lastVisitedAt: new Date(),
     });
-    return success(res, 'Topic fetched', topic);
+    return success(res, 'Topic fetched', await withTopicProgress(topic, req));
   } catch (err) { return error(res, err.message, 500); }
 };
 
@@ -592,7 +743,96 @@ exports.getQuestions = async (req, res) => {
       Question.countDocuments(filter),
     ]);
     const localized = await localizeByBoard(questions, QuestionTranslation, 'questionId', ['question', 'answer', 'steps'], req);
-    return success(res, 'Questions fetched', { questions: localized, total, page, totalPages: Math.ceil(total / limit) });
+    const topicId = req.query.topicId || localized[0]?.topicId?._id || localized[0]?.topicId;
+    const topicProgress = topicId ? (await getTopicProgressMap(req, [topicId])).get(String(topicId)) : null;
+    const submissions = await AnswerSubmission.find({
+      studentId: req.user._id,
+      questionId: { $in: localized.map(question => question._id) },
+    }).select('questionId imageUrl status submittedAt createdAt updatedAt');
+    const submissionByQuestion = new Map(submissions.map(submission => [String(submission.questionId), submission]));
+    const decorated = localized.map(question => {
+      const submission = submissionByQuestion.get(String(question._id)) || null;
+      return {
+        ...question,
+        submission,
+        isCompleted: Boolean(submission),
+        readOnly: false,
+      };
+    });
+    return success(res, 'Questions fetched', {
+      questions: decorated,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      topicProgress,
+      readOnly: false,
+    });
+  } catch (err) { return error(res, err.message, 500); }
+};
+
+exports.completeTopic = async (req, res) => {
+  try {
+    const scope = subscriptionScope(req);
+    if (!scope?.boardId || !scope?.classId) return error(res, 'Please purchase a class subscription to complete topics', 403);
+    const topic = await Topic.findOne({ _id: req.params.topicId, isActive: true });
+    if (!topic) return error(res, 'Topic not found', 404);
+    const chapter = await Chapter.findOne({ _id: topic.chapterId, boardId: scope.boardId, classId: scope.classId, isActive: true });
+    if (!chapter) return error(res, 'Topic is not available in your subscription', 403);
+
+    const questions = await Question.find({
+      boardId: scope.boardId,
+      classId: scope.classId,
+      topicId: topic._id,
+      isActive: true,
+    }).select('_id');
+    const submissions = await AnswerSubmission.find({
+      studentId: req.user._id,
+      questionId: { $in: questions.map(question => question._id) },
+    }).select('questionId');
+    const totalQuestions = questions.length;
+    const completedQuestions = submissions.length;
+    if (!totalQuestions) return error(res, 'Topic has no active questions to complete', 400);
+    if (completedQuestions < totalQuestions) {
+      return error(res, 'Complete all questions before completing this topic', 400, {
+        completedQuestions,
+        totalQuestions,
+      });
+    }
+
+    const progress = await StudentProgress.findOneAndUpdate(
+      {
+        studentId: req.user._id,
+        boardId: scope.boardId,
+        classId: scope.classId,
+        subjectId: chapter.subjectId,
+        topicId: topic._id,
+      },
+      {
+        studentId: req.user._id,
+        boardId: scope.boardId,
+        classId: scope.classId,
+        subjectId: chapter.subjectId,
+        topicId: topic._id,
+        completedQuestions,
+        totalQuestions,
+        percentage: 100,
+        lastActivityAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
+    buildProgress(req.user).catch(err => {
+      console.error(`Progress rebuild failed after topic complete ${topic._id}:`, err);
+    });
+    return success(res, 'Topic completed', {
+      topicId: topic._id,
+      subjectId: chapter.subjectId,
+      completedQuestions,
+      totalQuestions,
+      percentage: 100,
+      isCompleted: true,
+      readOnly: false,
+      progress,
+    });
   } catch (err) { return error(res, err.message, 500); }
 };
 
@@ -635,9 +875,14 @@ exports.getResumeLearning = async (req, res) => {
 exports.submitAnswer = async (req, res) => {
   try {
     if (!req.file) return error(res, 'Answer image is required');
+    console.log(`Submit answer started: user=${req.user._id} question=${req.params.questionId} file=${req.file.filename}`);
     const question = await ensureQuestionInSubscription(req, req.params.questionId);
     const imageUrl = `/uploads/answers/${req.file.filename}`;
-    const submission = await AnswerSubmission.create({
+    const existing = await AnswerSubmission.findOne({
+      studentId: req.user._id,
+      questionId: question._id,
+    });
+    const submissionData = {
       studentId: req.user._id,
       boardId: question.boardId,
       classId: question.classId,
@@ -646,10 +891,28 @@ exports.submitAnswer = async (req, res) => {
       questionId: question._id,
       imageUrl,
       status: 'submitted',
+      submittedAt: new Date(),
+    };
+    const submission = existing
+      ? await AnswerSubmission.findByIdAndUpdate(existing._id, submissionData, { new: true })
+      : await AnswerSubmission.create(submissionData);
+    if (existing) {
+      const deletedEvaluation = await Evaluation.deleteOne({ submissionId: existing._id });
+      if (deletedEvaluation.deletedCount) {
+        buildResults(req.user).catch(err => {
+          console.error(`Result rebuild failed after reupload ${existing._id}:`, err);
+        });
+      }
+      if (existing.imageUrl && existing.imageUrl !== imageUrl) deleteAnswerUpload(existing.imageUrl);
+    }
+    buildProgress(req.user).catch(err => {
+      console.error(`Progress rebuild failed after submission ${submission._id}:`, err);
     });
-    await buildProgress(req.user);
-    return success(res, 'Answer submitted', submission, 201);
+    console.log(`Submit answer saved: submission=${submission._id} reupload=${Boolean(existing)}`);
+    return success(res, existing ? 'Answer reuploaded' : 'Answer submitted', submission, existing ? 200 : 201);
   } catch (err) {
+    deleteUploadedFile(req.file);
+    console.error('Submit answer error:', err);
     if (err.code === 11000) return error(res, 'Answer already submitted for this question', 409);
     return error(res, err.message, err.message.includes('subscription') || err.message.includes('available') ? 403 : 500);
   }

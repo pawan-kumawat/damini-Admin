@@ -107,8 +107,8 @@ const upload = multer({
 const handleUpload = (req, res, next) => {
   console.log(`Answer upload started: user=${req.user?._id || 'unknown'} question=${req.params.questionId}`);
   upload.any()(req, res, err => {
-    const statusCode = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
     if (err) {
+      const statusCode = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
       console.error('Answer upload multer error:', err);
       return res.status(statusCode).json({ status: false, message: err.message, data: null });
     }
@@ -151,6 +151,7 @@ router.get('/chapters', c.getChapters);
 router.get('/topics', c.getTopics);
 router.get('/subjects/:subjectId/topics', c.getSubjectTopics);
 router.get('/topics/:topicId', c.getTopicDetail);
+router.post('/topics/:topicId/complete', c.completeTopic);
 router.get('/questions', c.getQuestions);
 router.get('/subscriptions', c.getSubscriptions);
 router.post('/purchases', c.purchaseSubscription);

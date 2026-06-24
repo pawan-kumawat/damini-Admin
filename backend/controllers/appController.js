@@ -142,53 +142,103 @@ async function buildProgress(user) {
   };
   if (!scope.boardId || !scope.classId) {
     return {
-      overall: { completedSubjects: 0, totalSubjects: 0, percentage: 0 },
+      overall: {
+        completedQuestions: 0,
+        totalQuestions: 0,
+        completedSubjects: 0,
+        totalSubjects: 0,
+        completedTopics: 0,
+        totalTopics: 0,
+        percentage: 0,
+      },
       subjects: [],
+      completedTopics: 0,
+      totalTopics: 0,
       pendingQuestions: 0,
       submittedAnswers: 0,
     };
   }
 
-  const subjects = await Subject.find({ boardId: scope.boardId, classId: scope.classId, isActive: true }).sort({ name: 1 });
+  const subjects = await Subject.find({ boardId: scope.boardId, classId: scope.classId, isActive: true })
+    .select('_id name')
+    .sort({ name: 1 })
+    .lean();
   const subjectIds = subjects.map(subject => subject._id);
-  const chapters = await Chapter.find({ boardId: scope.boardId, classId: scope.classId, subjectId: { $in: subjectIds }, isActive: true });
+  const chapters = await Chapter.find({ boardId: scope.boardId, classId: scope.classId, subjectId: { $in: subjectIds }, isActive: true })
+    .select('_id subjectId')
+    .lean();
   const chapterIds = chapters.map(chapter => chapter._id);
-  const topics = await Topic.find({ chapterId: { $in: chapterIds }, isActive: true }).sort({ sortOrder: 1, name: 1 });
+  const topics = await Topic.find({ chapterId: { $in: chapterIds }, isActive: true })
+    .select('_id chapterId name sortOrder')
+    .sort({ sortOrder: 1, name: 1 })
+    .lean();
   const topicIds = topics.map(topic => topic._id);
-  const questions = await Question.find({ boardId: scope.boardId, classId: scope.classId, topicId: { $in: topicIds }, isActive: true }).select('_id subjectId topicId');
-  const submissions = await AnswerSubmission.find({ studentId: user._id, questionId: { $in: questions.map(q => q._id) } }).select('questionId subjectId topicId status');
-  const submittedQuestionIds = new Set(submissions.map(s => String(s.questionId)));
+  const topicQuestionStats = topicIds.length
+    ? await Question.aggregate([
+        {
+          $match: {
+            boardId: scope.boardId,
+            classId: scope.classId,
+            topicId: { $in: topicIds },
+            isActive: true,
+          },
+        },
+        {
+          $lookup: {
+            from: AnswerSubmission.collection.name,
+            let: { questionId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$studentId', user._id] },
+                      { $eq: ['$questionId', '$$questionId'] },
+                    ],
+                  },
+                },
+              },
+              { $project: { _id: 1 } },
+            ],
+            as: 'submissions',
+          },
+        },
+        {
+          $group: {
+            _id: '$topicId',
+            totalQuestions: { $sum: 1 },
+            completedQuestions: {
+              $sum: { $cond: [{ $gt: [{ $size: '$submissions' }, 0] }, 1, 0] },
+            },
+          },
+        },
+      ])
+    : [];
+  const questionStatsByTopic = new Map(topicQuestionStats.map(row => [String(row._id), row]));
 
   const topicsBySubject = new Map();
-  const questionsByTopic = new Map();
+  const chapterSubjectById = new Map(chapters.map(chapter => [String(chapter._id), String(chapter.subjectId)]));
   topics.forEach(topic => {
-    const chapter = chapters.find(ch => String(ch._id) === String(topic.chapterId));
-    if (!chapter) return;
-    const key = String(chapter.subjectId);
+    const key = chapterSubjectById.get(String(topic.chapterId));
+    if (!key) return;
     if (!topicsBySubject.has(key)) topicsBySubject.set(key, []);
     topicsBySubject.get(key).push(topic);
-  });
-  questions.forEach(question => {
-    const key = String(question.topicId);
-    if (!questionsByTopic.has(key)) questionsByTopic.set(key, []);
-    questionsByTopic.get(key).push(question);
   });
 
   const subjectProgress = subjects.map(subject => {
     const subjectTopics = topicsBySubject.get(String(subject._id)) || [];
     const completedTopics = subjectTopics.filter(topic => {
-      const topicQuestions = questionsByTopic.get(String(topic._id)) || [];
-      return topicQuestions.length > 0 && topicQuestions.every(q => submittedQuestionIds.has(String(q._id)));
+      const stats = questionStatsByTopic.get(String(topic._id));
+      return stats?.totalQuestions > 0 && stats.completedQuestions >= stats.totalQuestions;
     }).length;
     const topicDetails = subjectTopics.map(topic => {
-      const topicQuestions = questionsByTopic.get(String(topic._id)) || [];
-      const completedQuestions = topicQuestions.filter(q => submittedQuestionIds.has(String(q._id))).length;
+      const stats = questionStatsByTopic.get(String(topic._id)) || { completedQuestions: 0, totalQuestions: 0 };
       return {
         topicId: topic._id,
         name: topic.name,
-        completedQuestions,
-        totalQuestions: topicQuestions.length,
-        percentage: pct(completedQuestions, topicQuestions.length),
+        completedQuestions: stats.completedQuestions,
+        totalQuestions: stats.totalQuestions,
+        percentage: pct(stats.completedQuestions, stats.totalQuestions),
       };
     });
     return {
@@ -202,22 +252,28 @@ async function buildProgress(user) {
   });
 
   const completedSubjects = subjectProgress.filter(subject => subject.totalTopics > 0 && subject.completedTopics === subject.totalTopics).length;
-  const totalQuestions = questions.length;
-  const submittedAnswers = submissions.length;
+  const completedTopics = subjectProgress.reduce((sum, subject) => sum + subject.completedTopics, 0);
+  const totalTopics = subjectProgress.reduce((sum, subject) => sum + subject.totalTopics, 0);
+  const totalQuestions = topicQuestionStats.reduce((sum, row) => sum + row.totalQuestions, 0);
+  const submittedAnswers = topicQuestionStats.reduce((sum, row) => sum + row.completedQuestions, 0);
   const summary = {
     overall: {
       completedQuestions: submittedAnswers,
       totalQuestions,
       completedSubjects,
       totalSubjects: subjects.length,
+      completedTopics,
+      totalTopics,
       percentage: pct(submittedAnswers, totalQuestions),
     },
     subjects: subjectProgress,
+    completedTopics,
+    totalTopics,
     pendingQuestions: Math.max(totalQuestions - submittedAnswers, 0),
     submittedAnswers,
   };
 
-  await StudentProgress.findOneAndUpdate(
+  StudentProgress.findOneAndUpdate(
     { studentId: user._id, boardId: scope.boardId, classId: scope.classId, subjectId: null, topicId: null },
     {
       ...summary.overall,
@@ -227,7 +283,9 @@ async function buildProgress(user) {
       lastActivityAt: new Date(),
     },
     { upsert: true, new: true }
-  );
+  ).catch(err => {
+    console.error(`Progress cache update failed for user ${user._id}:`, err);
+  });
 
   return summary;
 }
@@ -966,7 +1024,15 @@ exports.getDashboard = async (req, res) => {
       user: publicUser(req.user),
       activeSubscription,
       contentLocked: !hasActiveSubscription(req.user),
-      overallProgress: progress?.overall || { completedSubjects: 0, totalSubjects: 0, percentage: 0 },
+      overallProgress: progress?.overall || {
+        completedQuestions: 0,
+        totalQuestions: 0,
+        completedSubjects: 0,
+        totalSubjects: 0,
+        completedTopics: 0,
+        totalTopics: 0,
+        percentage: 0,
+      },
       subjectProgress: progress?.subjects || [],
       pendingQuestions: progress?.pendingQuestions || 0,
       submittedAnswers: progress?.submittedAnswers || latestSubmissions.length,

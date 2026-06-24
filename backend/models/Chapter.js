@@ -10,4 +10,6 @@ const chapterSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+chapterSchema.index({ boardId: 1, classId: 1, subjectId: 1, isActive: 1 });
+
 module.exports = mongoose.model('Chapter', chapterSchema);

@@ -10,4 +10,6 @@ const subjectSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+subjectSchema.index({ boardId: 1, classId: 1, isActive: 1, name: 1 });
+
 module.exports = mongoose.model('Subject', subjectSchema);

@@ -14,4 +14,6 @@ const questionSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+questionSchema.index({ boardId: 1, classId: 1, topicId: 1, isActive: 1 });
+
 module.exports = mongoose.model('Question', questionSchema);

@@ -13,4 +13,6 @@ const topicSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+topicSchema.index({ chapterId: 1, isActive: 1, sortOrder: 1, name: 1 });
+
 module.exports = mongoose.model('Topic', topicSchema);
